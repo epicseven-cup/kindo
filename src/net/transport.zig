@@ -1,1 +1,1 @@
-// TCP transport — wraps std.Io for listen/connect; works identically with Io.Threaded (stable) and Io.Evented (async, experimental in 0.16); same code, swappable backend
+// TCP transport — direct blocking I/O via std.net (Zig 0.15); TCP_NODELAY set via std.posix.setsockopt on all sockets
