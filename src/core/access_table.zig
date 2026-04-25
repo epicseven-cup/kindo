@@ -1,0 +1,1 @@
+// AccessTable — per-block access records (count, last access, pattern, locality, confidence) stored locally on the owner machine; updated on every read/write at zero network cost; feeds the rebalancer

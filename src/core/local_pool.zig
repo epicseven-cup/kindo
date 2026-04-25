@@ -1,0 +1,1 @@
+// LocalPool — large mmap'd region carved at startup; each thread gets a 64kb chunk for lock-free bump allocation; exhausted chunks refill from the main pool under a mutex; falls back to free-list reuse before remote

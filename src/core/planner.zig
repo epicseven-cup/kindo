@@ -1,0 +1,1 @@
+// Pre-allocation planner — merges the comptime registry with the disk profile; assigns hot sites a guaranteed local reservation and cold sites a pre-allocated remote slab before the first alloc() call

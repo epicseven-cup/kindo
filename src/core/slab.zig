@@ -1,0 +1,1 @@
+// Slab allocator — pre-allocates contiguous slabs on remote machines; individual alloc/free within a slab cost zero network calls via a local free bitmap; six size classes 64b–1mb; whole-slab release sends one FreeSlabRequest
