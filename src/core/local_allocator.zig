@@ -2,8 +2,9 @@
 // BlockHeader before every payload; stores the block's absolute address in
 // Pointer.offset (fits in u48 on x86_64); no upfront memory commitment
 
-const std = @import("std");
+pub const CHUNK_SIZE: usize = 64 * 1024;
 
-pub fn LocalAllocator(allocator: std.mem.Allocator) RemoteBlock {
-    return
-}
+pub const FREE_QUEUE_CAPACITY: usize = 256;
+
+// 70% of predicted peak reserved for hot sites; overflow uses the general pool
+pub const HOT_RESERVATION_FACTOR: f32 = 0.7;

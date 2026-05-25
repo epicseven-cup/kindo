@@ -1,7 +1,9 @@
 const std = @import("std");
 const core = @import("core");
 
-test "WireHeader is exactly 14 bytes" {}
+test "WireHeader is exactly 14 bytes" {
+   std.testing.expectEqual(@as(usize, 14), @sizeOf(WireHeader);
+}
 
 test "AllocRequest serialise/deserialise round trip" {}
 

@@ -12,7 +12,7 @@ pub const InFlightMessage = struct {
 };
 
 pub const Simulator = struct {
-    rng: std.rand.DefaultPrng,
+    rng: std.Random.DefaultPrng,
     tick: u64,
     machines: std.AutoHashMap(u16, SimulatedMachine),
     in_flight: std.ArrayList(InFlightMessage),
