@@ -10,18 +10,26 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const net_module = b.createModule(.{
+        .root_source_file = b.path("src/net/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const kindo_module = b.createModule(.{
         .root_source_file = b.path("src/kindo.zig"),
         .target = target,
         .optimize = optimize,
     });
     kindo_module.addImport("core", core_module);
+    kindo_module.addImport("net", net_module);
 
     const daemon_module = b.createModule(.{
         .root_source_file = b.path("src/daemon.zig"),
         .target = target,
         .optimize = optimize,
     });
+
     daemon_module.addImport("core", core_module);
     daemon_module.addImport("kindo", kindo_module);
 
@@ -47,6 +55,7 @@ pub fn build(b: *std.Build) void {
     // inline tests inside src/ files
     const src_test_files = &[_][]const u8{
         "src/core/mod.zig",
+        "src/net/mod.zig",
         "src/kindo.zig",
         "src/daemon.zig",
     };
@@ -57,6 +66,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         });
         mod.addImport("core", core_module);
+        mod.addImport("net", net_module);
         mod.addImport("kindo", kindo_module);
         const t = b.addTest(.{ .root_module = mod });
         test_step.dependOn(&b.addRunArtifact(t).step);
@@ -77,6 +87,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         });
         mod.addImport("core", core_module);
+        mod.addImport("net", net_module);
         mod.addImport("kindo", kindo_module);
         mod.addImport("simulator", simulator_module);
         const t = b.addTest(.{ .root_module = mod });

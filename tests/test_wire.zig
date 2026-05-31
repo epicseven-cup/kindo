@@ -1,8 +1,12 @@
 const std = @import("std");
 const core = @import("core");
+const net = @import("net");
 
 test "WireHeader is exactly 14 bytes" {
-   std.testing.expectEqual(@as(usize, 14), @sizeOf(WireHeader);
+    // The size is 16 bytes since it is round up in runtime due to alignment
+    // but we expect it to be 14 bytes in actual bytes before rounding up.
+    try std.testing.expectEqual(@as(usize, 16), @sizeOf(net.wire.WireHeader));
+    try std.testing.expectEqual(112, @bitSizeOf(net.wire.WireHeader));
 }
 
 test "AllocRequest serialise/deserialise round trip" {}
