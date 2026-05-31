@@ -105,9 +105,33 @@ const Message = union(enum) {
     batchPingResponse: BatchPingResponse,
 };
 
+const MsgType = enum(u8) {
+    allocRequest     = 0,
+    allocResponse    = 1,
+    allocSlabRequest = 2,
+    allocSlabResponse = 3,
+    freeSlabRequest  = 4,
+    readRequest      = 5,
+    readResponse     = 6,
+    writeRequest     = 7,
+    writeResponse    = 8,
+    freeRequest      = 9,
+    pingRequest      = 10,
+    pingResponse     = 11,
+    batchPingRequest = 12,
+    batchPingResponse = 13,
+    _,
+};
+
+const ParseError = error{
+    UnknownMsgType,
+    InvalidMessageLength,
+};
+
 const WireMessage = struct {
     header: WireHeader,
-    message: Message};
+    message: Message
+};
 
 // zig fmt: on
 
@@ -126,25 +150,35 @@ pub fn batchPingResponseParser(response: []u8) BatchPingResponse {
     };
 }
 
+// Why does zig format do this, makes this really hard to read man...
 pub fn messageParser(buf: []u8) !WireMessage {
-    const header: WireHeader = @as(WireHeader, buf[0..@sizeOf(WireHeader)]);
-
-    const message: Message = switch (header.type) {
-        .allocRequest => .{ .allocRequest = std.mem.bytesAsSlice(AllocRequest, buf[@sizeOf(WireHeader)..]) },
-        .allocResponse => .{ .allocResponse = std.mem.bytesAsSlice(AllocResponse, buf[@sizeOf(WireHeader)..]) },
-        .allocSlabRequest => .{ .allocSlabRequest = std.mem.bytesAsSlice(AllocSlabRequest, buf[@sizeOf(WireHeader)..]) },
-        .allocSlabResponse => .{ .allocSlabResponse = std.mem.bytesAsSlice(AllocSlabResponse,
-        },
-        .batchPingRequest => .{ .batchPingRequest = batchPingRequestParser(buf[@sizeOf(WireHeader)..]) },
-        .batchPingResponse => .{ .batchPingResponse = batchPingResponseParser(buf[@sizeOf(WireHeader)..]) },
+    if (buf.len < @sizeOf(WireHeader)) return error.InvalidMessageLength;
+    const header: WireHeader = std.mem.bytesToValue(WireHeader, buf[0..@sizeOf(WireHeader)]);
+    const msg_type: MsgType = @enumFromInt(header.msg_type);
+    if (buf.len != @sizeOf(WireHeader) + header.msg_size) return error.InvalidMessageLength;
+    const payload: []u8 = buf[@sizeOf(WireHeader)..];
+    const message: Message = switch (msg_type) {
+        .allocRequest => .{ .allocRequest = std.mem.bytesToValue(AllocRequest, payload[0..@sizeOf(AllocRequest)]) },
+        .allocResponse => .{ .allocResponse = std.mem.bytesToValue(AllocResponse, payload[0..@sizeOf(AllocResponse)]) },
+        .allocSlabRequest => .{ .allocSlabRequest = std.mem.bytesToValue(AllocSlabRequest, payload[0..@sizeOf(AllocSlabRequest)]) },
+        .allocSlabResponse => .{ .allocSlabResponse = std.mem.bytesToValue(AllocSlabResponse, payload[0..@sizeOf(AllocSlabResponse)]) },
+        .freeSlabRequest => .{ .freeSlabRequest = std.mem.bytesToValue(FreeSlabRequest, payload[0..@sizeOf(FreeSlabRequest)]) },
+        .readRequest => .{ .readRequest = std.mem.bytesToValue(ReadRequest, payload[0..@sizeOf(ReadRequest)]) },
+        .readResponse => .{ .readResponse = std.mem.bytesToValue(ReadResponse, payload[0..@sizeOf(ReadResponse)]) },
+        .writeRequest => .{ .writeRequest = std.mem.bytesToValue(WriteRequest, payload[0..@sizeOf(WriteRequest)]) },
+        .writeResponse => .{ .writeResponse = std.mem.bytesToValue(WriteResponse, payload[0..@sizeOf(WriteResponse)]) },
+        .freeRequest => .{ .freeRequest = std.mem.bytesToValue(FreeRequest, payload[0..@sizeOf(FreeRequest)]) },
+        .pingRequest => .{ .pingRequest = std.mem.bytesToValue(PingBlock, payload[0..@sizeOf(PingBlock)]) },
+        .pingResponse => .{ .pingResponse = std.mem.bytesToValue(PingResponse, payload[0..@sizeOf(PingResponse)]) },
+        .batchPingRequest => .{ .batchPingRequest = batchPingRequestParser(payload) },
+        .batchPingResponse => .{ .batchPingResponse = batchPingResponseParser(payload) },
+        _ => return error.UnknownMsgType,
     };
 
     return WireMessage{
-        .Header = header,
-        .Message = message,
+        .header = header,
+        .message = message,
     };
-}
-
 }
 
 comptime {
