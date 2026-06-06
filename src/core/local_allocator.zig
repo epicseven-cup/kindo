@@ -1,20 +1,38 @@
 const std = @import("std");
-// zig fmt: off
 
+// Local allocator — three tier allocation strategy:
+//
+//   1. Thread local bin cache (t_bins) — freed blocks per size class, no lock
+//   2. Thread local bump pointer (thread_chunk) — carve from 64kb chunk, no lock
+//   3. Main pool mutex — only hit when thread chunk is exhausted
+//
+// alloc: check t_bins[class] → bump thread_chunk → lock + get new chunk
+// free:  push onto t_bins[class], no lock
+//
+// Size classes: 64b, 256b, 1kb, 4kb, 64kb, 1mb (matches slab allocator)
+// Allocations larger than 1mb go directly to the main pool.
+
+// TODO: add t_bins threadlocal array — one *BlockHeader free list per size class
+threadlocal var thread_chunk: []u8 = &.{};
+threadlocal var thread_index: usize = 0;
+
+const CHUNK_SIZE = 1024 * 64;
+
+// zig fmt: off
 const AllocatorError = error {
     InvalidFree,
 };
 
 pub const LocalAllocator = struct {
     limit: usize,
-    allocator: std.mem.Allocator,
+    memory_allocator: std.mem.Allocator,
     mutex: std.Thread.Mutex,
     memory_used: usize,
 
     pub fn init(limit: usize, allocator_interface: std.mem.Allocator) LocalAllocator {
         return LocalAllocator {
             .limit  = limit,
-            .allocator = allocator_interface,
+            .memory_allocator = allocator_interface,
             .mutex = std.Thread.Mutex{},
             .memory_used =  0,
         };
@@ -52,13 +70,29 @@ pub const LocalAllocator = struct {
 
     pub fn alloc(self: *LocalAllocator, size: usize) ![]u8 {
         // Locking the allocator so we dont get race conditions when allocating/deallocating memory checking limits
+
+        var ptr: []u8 = undefined;
+        if (thread_index + size >= thread_chunk.len){
+            ptr = thread_chunk[thread_index..thread_index+size];
+            thread_index += size;
+            return ptr;
+        }
+
         self.mutex.lock(); defer self.mutex.unlock();
         if (self.memory_used + size > self.limit) {
             return error.OutOfMemory;
         }
-        const block = try self.allocator.alloc(u8, size);
-        self.memory_used += size;
-        return block;
+
+        thread_chunk = try self.memory_allocator.alloc(u8, CHUNK_SIZE);
+        thread_index = 0;
+
+        ptr = thread_chunk[thread_index..thread_index+size];
+        // keeping track of the pointer index
+        thread_index += size;
+
+        // Assuming that it is using all the chunk
+        self.memory_used += CHUNK_SIZE;
+        return ptr;
     }
 
     pub fn free(self: *LocalAllocator, ptr: []u8) !void {
@@ -67,7 +101,7 @@ pub const LocalAllocator = struct {
             std.debug.print("Memory used is less than the size of the block freed {} < {} \n", .{ self.memory_used, ptr.len });
             return AllocatorError.InvalidFree;
         }
-        self.allocator.free(ptr);
+        self.memory_allocator.free(ptr);
         self.memory_used -= ptr.len;
     }
 };
